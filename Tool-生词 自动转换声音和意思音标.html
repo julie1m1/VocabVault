@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Word Vault — 单词发音本</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root {
+    --bg:#0a0a0c;--surface:#131316;--surface-2:#1a1a1f;--surface-3:#222228;
+    --border:#2a2a32;--accent:#c8ff00;--accent-dim:#a5d600;
+    --accent-glow:rgba(200,255,0,0.12);--text:#eae8e4;--text-muted:#6b6b76;
+    --text-subtle:#44444e;--phonetic:#8b8b96;--danger:#ff4d6a;
+    --danger-dim:rgba(255,77,106,0.15);--sentence-accent:#6b8aff;
+    --sentence-glow:rgba(107,138,255,0.12);--radius:12px;--radius-sm:8px;
+    --font-display:'Outfit',sans-serif;--font-mono:'IBM Plex Mono',monospace;
+    --transition:0.22s cubic-bezier(0.4,0,0.2,1);
+    --grad-1:rgba(200,255,0,0.04);--grad-2:rgba(100,80,255,0.03);
+    --grain-opacity:0.025;--shadow-card:none;
+  }
+  [data-theme="light"] {
+    --bg:#f4f2ee;--surface:#ffffff;--surface-2:#f9f8f5;--surface-3:#efedea;
+    --border:#e0ddd7;--accent:#358200;--accent-dim:#2d7200;
+    --accent-glow:rgba(53,130,0,0.1);--text:#1c1c1e;--text-muted:#6e6e78;
+    --text-subtle:#a8a8b0;--phonetic:#5a5a66;--danger:#d42b4e;
+    --danger-dim:rgba(212,43,78,0.1);--sentence-accent:#3b5ccc;
+    --sentence-glow:rgba(59,92,204,0.1);--grad-1:rgba(53,130,0,0.05);
+    --grad-2:rgba(100,80,200,0.03);--grain-opacity:0.02;
+    --shadow-card:0 1px 3px rgba(0,0,0,0.04);
+  }
+  html{font-size:15px}
+  body{font-family:var(--font-display);background:var(--bg);color:var(--text);
+    min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(ellipse 60% 50% at 10% 0%,var(--grad-1) 0%,transparent 60%),
+    radial-gradient(ellipse 40% 60% at 90% 100%,var(--grad-2) 0%,transparent 50%)}
+  body::after{content:'';position:fixed;inset:0;opacity:var(--grain-opacity);pointer-events:none;z-index:0;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  body,.header,.import-box,.search-input,.item-row,.word-text,.phonetic-text,
+  .section-label,.play-btn,.del-btn,.btn,.modal,.toast{
+    transition:background-color .4s ease,color .3s ease,border-color .4s ease,box-shadow .4s ease}
+
+  .app{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:0 2rem 4rem}
+
+  /* Header - full width aligned to edges */
+  .header{display:flex;align-items:center;justify-content:space-between;padding:1.5rem 0;margin-bottom:1.5rem;animation:fadeDown .6s ease forwards}
+  .header-left{display:flex;align-items:baseline;gap:1rem;white-space:nowrap}
+  .header h1{font-size:2.2rem;font-weight:800;letter-spacing:-.03em;line-height:1;display:flex;align-items:center;gap:.5rem}
+  .header h1 .accent{color:var(--accent)}
+  .header p{color:var(--text-muted);font-size:.88rem;font-weight:300;white-space:nowrap}
+
+  /* Theme Toggle */
+  .theme-toggle{flex-shrink:0;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);color:var(--text-muted);cursor:pointer;transition:all var(--transition)}
+  .theme-toggle:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-glow)}
+  .theme-toggle svg{width:18px;height:18px}
+  .icon-sun,.icon-moon{transition:opacity .25s}
+  [data-theme="dark"] .icon-sun{display:block}[data-theme="dark"] .icon-moon{display:none}
+  [data-theme="light"] .icon-sun{display:none}[data-theme="light"] .icon-moon{display:block}
+
+  /* Stats - subtle annotation at bottom-left */
+  .stats{position:fixed;bottom:1.2rem;left:1.2rem;display:flex;gap:.9rem;z-index:10;opacity:.45;transition:opacity .3s ease}
+  .stats:hover{opacity:.85}
+  .stat-item{display:flex;align-items:baseline;gap:.25rem}
+  .stat-value{font-size:.78rem;font-weight:600;font-family:var(--font-mono);color:var(--text-muted);line-height:1}
+  .stat-label{font-size:.65rem;color:var(--text-subtle);font-weight:400}
+
+  /* Two-column layout */
+  .main-layout{display:flex;gap:2rem;align-items:flex-start}
+  .col-left{width:340px;flex-shrink:0;display:flex;flex-direction:column;gap:1.2rem;position:sticky;top:1.5rem}
+  .col-right{flex:1;min-width:0;display:flex;flex-direction:column;gap:1rem}
+
+  /* Section Label */
+  .section-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:.65rem;font-weight:500}
+
+  /* Drop Zone */
+  .drop-zone-wrap{animation:fadeUp .5s ease .15s both}
+  .drop-zone{position:relative;border:2px dashed var(--border);border-radius:var(--radius);padding:1.4rem .8rem;text-align:center;cursor:pointer;transition:all .3s ease;background:var(--surface)}
+  .drop-zone:hover{border-color:var(--accent);background:color-mix(in srgb,var(--surface) 96%,var(--accent) 4%)}
+  .drop-zone.drag-over{border-color:var(--accent);background:var(--accent-glow);box-shadow:0 0 30px var(--accent-glow)}
+  .drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+  .drop-zone-icon{width:32px;height:32px;margin:0 auto .5rem;color:var(--text-subtle)}
+  .drop-zone p{color:var(--text-muted);font-size:.82rem;line-height:1.5}
+  .drop-zone p strong{color:var(--accent);font-weight:600}
+  .drop-zone-hint{font-size:.72rem;color:var(--text-subtle);margin-top:.5rem}
+
+  /* Image Thumbnails */
+  .image-thumbs{display:flex;gap:.5rem;overflow-x:auto;padding:.6rem 0;scrollbar-width:thin}
+  .image-thumbs::-webkit-scrollbar{height:4px}
+  .image-thumbs::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:2px}
+  .thumb{position:relative;width:68px;height:68px;flex-shrink:0;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--surface-2)}
+  .thumb img{width:100%;height:100%;object-fit:cover}
+  .thumb-rm{position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;border:none;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:background .2s}
+  .thumb-rm:hover{background:var(--danger)}
+
+  /* OCR Controls */
+  .ocr-controls{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;padding:.5rem 0}
+  .ocr-controls.hidden{display:none}
+  .ocr-status{font-size:.78rem;color:var(--text-muted);margin-left:auto}
+  .lang-select{font-size:.78rem;font-family:var(--font-display);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:.35rem .6rem;outline:none;cursor:pointer}
+
+  /* Progress Bar */
+  .progress-bar{width:100%;height:4px;background:var(--surface-3);border-radius:2px;overflow:hidden;margin-top:.3rem}
+  .progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s ease;width:0}
+  .progress-bar-wrap{flex:1;min-width:100px}
+
+  /* OCR Preview */
+  .ocr-preview{margin-bottom:1.8rem;animation:slideDown .4s ease forwards;display:none}
+  .ocr-preview.show{display:block}
+  .ocr-preview .import-box textarea{min-height:120px}
+  .preview-actions{display:flex;gap:.6rem;margin-top:.9rem;align-items:center}
+  .preview-info{font-size:.75rem;color:var(--text-subtle);margin-left:auto}
+
+  /* Import Section */
+  .import-section{animation:fadeUp .5s ease .2s both}
+  .import-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem;box-shadow:var(--shadow-card)}
+  .import-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+  .import-box textarea{width:100%;min-height:120px;background:transparent;border:none;outline:none;color:var(--text);font-family:var(--font-mono);font-size:.85rem;line-height:1.7;resize:vertical}
+  .import-box textarea::placeholder{color:var(--text-subtle)}
+  .import-actions{display:flex;gap:.6rem;margin-top:.9rem;align-items:center;flex-wrap:wrap}
+  .import-hint{font-size:.75rem;color:var(--text-subtle);margin-left:auto}
+
+  /* Buttons */
+  .btn{display:inline-flex;align-items:center;gap:.45rem;padding:.6rem 1.15rem;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-family:var(--font-display);font-size:.82rem;font-weight:500;cursor:pointer;transition:all var(--transition);white-space:nowrap}
+  .btn:hover{background:var(--surface-3);border-color:color-mix(in srgb,var(--border) 60%,var(--text) 40%)}
+  .btn:active{transform:scale(.97)}
+  .btn-primary{background:var(--accent);color:#0a0a0c;border-color:var(--accent);font-weight:600}
+  [data-theme="light"] .btn-primary{color:#fff}
+  .btn-primary:hover{background:var(--accent-dim);border-color:var(--accent-dim);box-shadow:0 0 20px var(--accent-glow)}
+  .btn-danger{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 25%,transparent)}
+  .btn-danger:hover{background:var(--danger-dim);border-color:var(--danger)}
+  .btn svg{width:16px;height:16px;flex-shrink:0}
+  .btn[disabled]{opacity:.5;cursor:not-allowed;pointer-events:none}
+
+  /* Toolbar */
+  .toolbar{display:flex;gap:.6rem;margin-bottom:1rem;animation:fadeUp .5s ease .25s both}
+  .search-wrap{flex:1;position:relative}
+  .search-wrap svg{position:absolute;left:.85rem;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-subtle);pointer-events:none}
+  .search-input{width:100%;padding:.6rem .9rem .6rem 2.5rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-display);font-size:.88rem;outline:none}
+  .search-input::placeholder{color:var(--text-subtle)}
+  .search-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+
+  /* List */
+  .item-list{display:flex;flex-direction:column;gap:.45rem;animation:fadeUp .5s ease .3s both}
+  .item-row{display:flex;align-items:flex-start;gap:.7rem;padding:.75rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow-card);transition:all var(--transition);opacity:0;animation:fadeUp .35s ease forwards}
+  .item-row:hover{border-color:color-mix(in srgb,var(--border) 50%,var(--text-muted) 50%);background:var(--surface-2)}
+  .item-row.is-word{border-left:3px solid var(--accent)}
+  .item-row.is-sentence{border-left:3px solid var(--sentence-accent)}
+
+  .item-index{font-family:var(--font-mono);font-size:.72rem;color:var(--text-subtle);min-width:28px;text-align:right;user-select:none;padding-top:2px}
+  .item-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:.2rem}
+  .item-top{display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap}
+  .word-text{font-size:1.05rem;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
+  .sentence-text{font-size:.95rem;font-weight:500;line-height:1.5;word-break:break-word}
+  .phonetic-text{font-family:var(--font-mono);font-size:.78rem;color:var(--phonetic);white-space:nowrap}
+  .phonetic-text .sep{margin:0 .2rem;color:var(--text-subtle)}
+  .phonetic-placeholder{font-family:var(--font-mono);font-size:.72rem;color:var(--text-subtle);opacity:.5}
+  .item-translation{font-size:.8rem;color:var(--text-muted);line-height:1.5;margin-top:.1rem}
+  .item-translation:empty{display:none}
+
+  .refresh-ph-btn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text-subtle);cursor:pointer;transition:all var(--transition);flex-shrink:0}
+  .refresh-ph-btn:hover{color:var(--accent);border-color:var(--accent)}
+  .refresh-ph-btn svg{width:10px;height:10px}
+  .refresh-ph-btn.loading svg{animation:spin .8s linear infinite}
+
+  .item-date{font-size:.7rem;color:var(--text-subtle);font-family:var(--font-mono);white-space:nowrap;flex-shrink:0;padding-top:4px}
+  .item-actions{display:flex;gap:.3rem;align-items:center;flex-shrink:0;padding-top:2px}
+
+  .play-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--surface-2);color:var(--text-muted);cursor:pointer;transition:all var(--transition)}
+  .play-btn:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-glow)}
+  .play-btn:active{transform:scale(.92)}
+  .play-btn.playing{color:var(--accent);border-color:var(--accent);animation:pulse-ring 1s ease infinite}
+  .play-btn.sentence-play:hover{color:var(--sentence-accent);border-color:var(--sentence-accent);background:var(--sentence-glow)}
+  .play-btn.sentence-play.playing{color:var(--sentence-accent);border-color:var(--sentence-accent)}
+  .play-btn svg{width:15px;height:15px}
+  .play-label{font-size:.58rem;font-family:var(--font-mono);color:var(--text-subtle);position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);white-space:nowrap;pointer-events:none;opacity:0;transition:opacity var(--transition);font-weight:500}
+  .play-btn:hover .play-label{opacity:1}
+  .del-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;border:none;background:transparent;color:var(--text-subtle);cursor:pointer;transition:all var(--transition)}
+  .del-btn:hover{color:var(--danger);background:var(--danger-dim)}
+  .del-btn:active{transform:scale(.9)}
+  .del-btn svg{width:14px;height:14px}
+
+  .type-badge{font-size:.6rem;font-family:var(--font-mono);padding:.12rem .4rem;border-radius:4px;font-weight:500;letter-spacing:.04em;text-transform:uppercase}
+  .type-badge.badge-word{color:var(--accent);background:var(--accent-glow)}
+  .type-badge.badge-sentence{color:var(--sentence-accent);background:var(--sentence-glow)}
+
+  /* Empty State */
+  .empty-state{text-align:center;padding:3.5rem 1rem;color:var(--text-subtle);animation:fadeUp .5s ease .25s both}
+  .empty-state svg{width:48px;height:48px;margin-bottom:1rem;opacity:.3}
+  .empty-state .empty-title{font-size:1.05rem;font-weight:600;color:var(--text-muted);margin-bottom:.3rem}
+  .empty-state p{font-size:.9rem;line-height:1.6}
+
+  /* Toast */
+  .toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface-3);border:1px solid var(--border);color:var(--text);padding:.7rem 1.3rem;border-radius:var(--radius-sm);font-size:.85rem;font-weight:500;opacity:0;pointer-events:none;transition:all .35s ease;z-index:999;white-space:nowrap;box-shadow:0 8px 30px rgba(0,0,0,.15)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* Modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+  .modal-overlay.show{opacity:1;pointer-events:auto}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.8rem;max-width:380px;width:90%;text-align:center;transform:scale(.95);transition:transform .25s ease,background-color .4s ease,border-color .4s ease}
+  .modal-overlay.show .modal{transform:scale(1)}
+  .modal h3{font-size:1.1rem;font-weight:700;margin-bottom:.5rem}
+  .modal p{font-size:.88rem;color:var(--text-muted);margin-bottom:1.3rem;line-height:1.5}
+  .modal-actions{display:flex;gap:.6rem;justify-content:center}
+  .modal .btn{min-width:100px;justify-content:center}
+
+  /* Fetch Progress (top bar) */
+  .fetch-bar{position:fixed;top:0;left:0;height:3px;background:var(--accent);z-index:200;transition:width .3s ease;border-radius:0 2px 2px 0;box-shadow:0 0 10px var(--accent-glow);display:none}
+
+  /* Animations */
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes slideDown{from{opacity:0;transform:translateY(-10px);max-height:0}to{opacity:1;transform:translateY(0);max-height:600px}}
+  @keyframes pulse-ring{0%{box-shadow:0 0 0 0 var(--accent-glow)}70%{box-shadow:0 0 0 6px transparent}100%{box-shadow:0 0 0 0 transparent}}
+  @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+  ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:3px}
+
+  @media(max-width:800px){
+    .app{padding:0 1rem 3rem}
+    .header{flex-wrap:wrap}
+    .header h1{font-size:1.6rem}
+    .main-layout{flex-direction:column}
+    .col-left{width:100%;position:static}
+    .item-date{display:none}
+    .import-hint,.preview-info{display:none}
+    .item-top{gap:.3rem}
+    .stats{bottom:.8rem;left:.8rem;gap:.6rem;flex-wrap:wrap}
+  }
+</style>
+</head>
+<body>
+
+<div class="fetch-bar" id="fetchBar"></div>
+
+<div class="app">
+  <header class="header">
+    <div class="header-left">
+      <h1> Vocab Vault</h1>
+      <p>截图导入单词与句子，自动OCR、翻译、发音</p>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </header>
+
+  <div class="main-layout">
+    <!-- Left Column: Inputs -->
+    <div class="col-left">
+      <div class="import-section">
+        <div class="section-label">手动输入</div>
+        <div class="import-box">
+          <textarea id="textInput" placeholder="粘贴单词或句子，每行一个&#10;ephemeral&#10;The quick brown fox jumps over the lazy dog."></textarea>
+          <div class="import-actions">
+            <button class="btn btn-primary" onclick="importFromManual()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              添加到词库
+            </button>
+            <button class="btn" onclick="document.getElementById('textInput').value=''">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              清空
+            </button>
+            <span class="import-hint">Ctrl+Enter</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="drop-zone-wrap">
+        <div class="section-label">图片导入</div>
+        <div class="drop-zone" id="dropZone">
+          <input type="file" id="fileInput" multiple accept="image/*">
+          <svg class="drop-zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+          <p>拖拽 / 粘贴 <strong>Ctrl+V</strong> / 点击选择</p>
+          <p class="drop-zone-hint">支持多张图片 · 首次加载OCR引擎</p>
+        </div>
+        <div class="image-thumbs" id="imageThumbs"></div>
+        <div class="ocr-controls hidden" id="ocrControls">
+          <select class="lang-select" id="langSelect">
+            <option value="eng">English</option>
+            <option value="eng+chi_sim">中英混合</option>
+          </select>
+          <button class="btn btn-primary" id="ocrBtn" onclick="startOCR()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            开始识别
+          </button>
+          <button class="btn" onclick="clearImages()">清除</button>
+          <div class="progress-bar-wrap"><div class="progress-bar"><div class="progress-fill" id="ocrProgress"></div></div></div>
+          <span class="ocr-status" id="ocrStatus"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: List + Search -->
+    <div class="col-right">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" class="search-input" id="searchInput" placeholder="搜索单词或句子..." oninput="renderList()">
+        </div>
+        <button class="btn" onclick="exportItems()" title="导出">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
+        <button class="btn btn-danger" onclick="showClearAll()" title="清空全部">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+        </button>
+      </div>
+      <div class="item-list" id="itemList"></div>
+    </div>
+  </div>
+
+  <!-- OCR Preview -->
+  <div class="ocr-preview" id="ocrPreview">
+    <div class="section-label">识别结果（可编辑后再确认导入）</div>
+    <div class="import-box">
+      <textarea id="ocrText" placeholder="OCR识别的文字将显示在这里...&#10;每行将自动识别为单词或句子"></textarea>
+      <div class="preview-actions">
+        <button class="btn btn-primary" onclick="confirmOCRImport()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          确认导入
+        </button>
+        <button class="btn" onclick="hideOCRPreview()">取消</button>
+        <span class="preview-info" id="previewInfo"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat-item"><span class="stat-value" id="totalCount">0</span><span class="stat-label">总条目</span></div>
+  <div class="stat-item"><span class="stat-value" id="wordCount">0</span><span class="stat-label">单词</span></div>
+  <div class="stat-item"><span class="stat-value" id="sentenceCount">0</span><span class="stat-label">句子</span></div>
+  <div class="stat-item"><span class="stat-value" id="todayCount">0</span><span class="stat-label">今日</span></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3>清空全部词库？</h3>
+    <p>此操作不可撤销，所有单词、句子、音标和翻译将被永久删除。</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="hideModal()">取消</button>
+      <button class="btn btn-danger" onclick="confirmClearAll()">确认清空</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== Constants ====================
+const STORAGE_KEY = 'word_vault_data';
+const THEME_KEY = 'word_vault_theme';
+const DICT_API = 'https://api.dictionaryapi.dev/api/v2/entries/en/';
+const TRANS_API = 'https://api.mymemory.translated.net/get';
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+// ==================== Storage ====================
+function loadItems() {
+  try {
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    return data.map(it => ({
+      ...it,
+      type: it.type || 'word',
+      phonetics: it.phonetics || [],
+      translation: it.translation || ''
+    }));
+  } catch { return []; }
+}
+function saveItems() { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }
+
+// ==================== State ====================
+let items = loadItems();
+let imageFiles = []; // { file, url }
+let currentAudio = null, currentPlayBtn = null;
+let fetchingSet = new Set();
+
+// ==================== Theme ====================
+function initTheme() {
+  const saved = localStorage.getItem(THEME_KEY) || 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem(THEME_KEY, next);
+}
+
+// ==================== Image Handling ====================
+function addImageFiles(files) {
+  const imgFiles = [...files].filter(f => f.type.startsWith('image/'));
+  if (imgFiles.length === 0) return;
+  imgFiles.forEach(f => {
+    imageFiles.push({ file: f, url: URL.createObjectURL(f) });
+  });
+  renderImageThumbs();
+}
+
+function removeImage(idx) {
+  URL.revokeObjectURL(imageFiles[idx].url);
+  imageFiles.splice(idx, 1);
+  renderImageThumbs();
+}
+
+function clearImages() {
+  imageFiles.forEach(f => URL.revokeObjectURL(f.url));
+  imageFiles = [];
+  renderImageThumbs();
+  hideOCRPreview();
+}
+
+function renderImageThumbs() {
+  const container = document.getElementById('imageThumbs');
+  const controls = document.getElementById('ocrControls');
+  if (imageFiles.length === 0) {
+    container.innerHTML = '';
+    controls.classList.add('hidden');
+    return;
+  }
+  controls.classList.remove('hidden');
+  container.innerHTML = imageFiles.map((f, i) =>
+    `<div class="thumb">
+      <img src="${f.url}" alt="图片${i+1}">
+      <button class="thumb-rm" onclick="removeImage(${i})" title="移除">&times;</button>
+    </div>`
+  ).join('');
+}
+
+// Drop Zone Events
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  addImageFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', e => { addImageFiles(e.target.files); fileInput.value = ''; });
+
+document.addEventListener('paste', e => {
+  const clipItems = e.clipboardData?.items;
+  if (!clipItems) return;
+  const imgs = [];
+  for (const ci of clipItems) {
+    if (ci.type.startsWith('image/')) imgs.push(ci.getAsFile());
+  }
+  if (imgs.length > 0) {
+    e.preventDefault();
+    addImageFiles(imgs);
+    showToast(`已粘贴 ${imgs.length} 张图片`);
+  }
+});
+
+// ==================== OCR ====================
+async function ensureTesseract() {
+  if (window.Tesseract) return;
+  setOCRStatus('加载OCR引擎中...');
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    s.onload = () => { setOCRStatus('引擎就绪'); resolve(); };
+    s.onerror = () => reject(new Error('OCR引擎加载失败，请检查网络'));
+    document.head.appendChild(s);
+  });
+}
+
+function setOCRProgress(pct) {
+  document.getElementById('ocrProgress').style.width = pct + '%';
+}
+function setOCRStatus(msg) {
+  document.getElementById('ocrStatus').textContent = msg;
+}
+
+async function startOCR() {
+  if (imageFiles.length === 0) return;
+  const btn = document.getElementById('ocrBtn');
+  btn.setAttribute('disabled', 'true');
+  setOCRProgress(0);
+
+  try {
+    await ensureTesseract();
+
+    const lang = document.getElementById('langSelect').value;
+    setOCRStatus('初始化识别引擎...');
+
+    let currentProgress = 0;
+    const total = imageFiles.length;
+
+    const worker = await Tesseract.createWorker(lang, 1, {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          const overall = ((currentProgress + m.progress) / total) * 100;
+          setOCRProgress(Math.round(overall));
+          setOCRStatus(`识别中 ${currentProgress + 1}/${total} (${Math.round(m.progress * 100)}%)`);
+        } else if (m.status) {
+          setOCRStatus(m.status.replace(/_/g, ' ') + '...');
+        }
+      }
+    });
+
+    let allText = '';
+    for (let i = 0; i < imageFiles.length; i++) {
+      currentProgress = i;
+      const { data: { text } } = await worker.recognize(imageFiles[i].file);
+      if (allText && text.trim()) allText += '\n';
+      allText += text.trim();
+    }
+
+    await worker.terminate();
+    setOCRProgress(100);
+    setOCRStatus('识别完成');
+
+    // Clean up: remove common OCR noise
+    const cleaned = allText
+      .split('\n')
+      .map(l => l.replace(/^\d+[\.\)、]\s*/, '').replace(/^\s*[-•·]\s*/, '').trim())
+      .filter(l => l.length > 0)
+      .join('\n');
+
+    showOCRPreview(cleaned);
+
+  } catch (err) {
+    setOCRStatus('识别失败: ' + err.message);
+    showToast('OCR识别失败');
+  } finally {
+    btn.removeAttribute('disabled');
+    setTimeout(() => { setOCRProgress(0); setOCRStatus(''); }, 3000);
+  }
+}
+
+function showOCRPreview(text) {
+  const preview = document.getElementById('ocrPreview');
+  const textarea = document.getElementById('ocrText');
+  textarea.value = text;
+  preview.classList.add('show');
+  updatePreviewInfo();
+  preview.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function hideOCRPreview() {
+  document.getElementById('ocrPreview').classList.remove('show');
+  document.getElementById('ocrText').value = '';
+}
+
+function updatePreviewInfo() {
+  const lines = document.getElementById('ocrText').value
+    .split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const words = lines.filter(l => isWord(l));
+  const sentences = lines.filter(l => !isWord(l));
+  document.getElementById('previewInfo').textContent =
+    `${lines.length} 条（${words.length} 单词 · ${sentences.length} 句子）`;
+}
+
+document.getElementById('ocrText')?.addEventListener('input', updatePreviewInfo);
+
+function confirmOCRImport() {
+  const text = document.getElementById('ocrText').value;
+  importFromText(text, true);
+  hideOCRPreview();
+  clearImages();
+}
+
+// ==================== Text Parsing & Import ====================
+function isWord(text) {
+  return /^[a-zA-Z][a-zA-Z''-]*$/.test(text.trim());
+}
+
+function genId() {
+  return 'wv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+}
+
+function importFromText(text, fromOCR = false) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  if (lines.length === 0) { showToast('请输入内容'); return; }
+
+  const existing = new Set(items.map(i => i.text.toLowerCase()));
+  const toAdd = [];
+  let skipped = 0;
+
+  lines.forEach(line => {
+    if (existing.has(line.toLowerCase())) { skipped++; return; }
+    toAdd.push({
+      id: genId(),
+      type: isWord(line) ? 'word' : 'sentence',
+      text: line,
+      phonetics: [],
+      translation: '',
+      addedAt: new Date().toISOString()
+    });
+    existing.add(line.toLowerCase());
+  });
+
+  if (toAdd.length === 0) {
+    showToast(skipped > 0 ? `${skipped} 条已存在` : '没有新内容');
+    return;
+  }
+
+  items.push(...toAdd);
+  saveItems();
+  renderList();
+  updateStats();
+
+  const w = toAdd.filter(i => i.type === 'word').length;
+  const s = toAdd.filter(i => i.type === 'sentence').length;
+  let msg = `已添加 ${toAdd.length} 条`;
+  if (w > 0) msg += `（${w} 单词`;
+  if (w > 0 && s > 0) msg += ' · ';
+  if (s > 0) msg += `${s} 句子`;
+  if (w > 0) msg += '）';
+  if (skipped > 0) msg += `，${skipped} 条已存在`;
+  showToast(msg);
+
+  backgroundFetch(toAdd);
+}
+
+function importFromManual() {
+  const text = document.getElementById('textInput').value;
+  importFromText(text, false);
+  document.getElementById('textInput').value = '';
+}
+
+// ==================== Background Fetch ====================
+async function backgroundFetch(newItems) {
+  const total = newItems.length;
+  let done = 0;
+
+  const fetchBar = document.getElementById('fetchBar');
+  fetchBar.style.display = 'block';
+  fetchBar.style.width = '0%';
+
+  for (const item of newItems) {
+    try {
+      if (item.type === 'word') {
+        item.phonetics = await fetchPhonetic(item.text);
+      }
+      item.translation = await fetchTranslation(item.text);
+    } catch {}
+
+    done++;
+    fetchBar.style.width = Math.round((done / total) * 100) + '%';
+    saveItems();
+    updateItemDom(item.id);
+    await delay(250);
+  }
+
+  fetchBar.style.width = '100%';
+  setTimeout(() => { fetchBar.style.display = 'none'; fetchBar.style.width = '0%'; }, 500);
+  const success = newItems.filter(i => i.translation).length;
+  showToast(`后台获取完成：${success}/${total} 条已翻译`);
+}
+
+async function fetchPhonetic(word) {
+  try {
+    const resp = await fetch(DICT_API + encodeURIComponent(word));
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    if (!Array.isArray(data) || !data[0]) return [];
+    const entry = data[0];
+    const texts = new Set();
+    if (entry.phonetic) texts.add(entry.phonetic);
+    if (entry.phonetics) entry.phonetics.forEach(p => { if (p.text) texts.add(p.text); });
+    return [...texts];
+  } catch { return []; }
+}
+
+async function fetchTranslation(text) {
+  try {
+    const resp = await fetch(`${TRANS_API}?q=${encodeURIComponent(text)}&langpair=en|zh-CN`);
+    const data = await resp.json();
+    if (data.responseStatus === 200 && data.responseData?.translatedText) {
+      const t = data.responseData.translatedText;
+      // MyMemory sometimes returns the original text if no translation found
+      if (t.toLowerCase() === text.toLowerCase()) return '';
+      return t;
+    }
+    return '';
+  } catch { return ''; }
+}
+
+// ==================== Refresh Phonetic ====================
+async function refreshPhonetic(word, btn) {
+  if (fetchingSet.has(word)) return;
+  fetchingSet.add(word);
+  btn.classList.add('loading');
+  const ph = await fetchPhonetic(word);
+  const item = items.find(i => i.word === word || i.text === word);
+  if (item) { item.phonetics = ph; saveItems(); updateItemDom(item.id); }
+  fetchingSet.delete(word);
+  showToast(ph.length > 0 ? `"${word}" 音标已更新` : `"${word}" 未找到音标`);
+}
+
+// ==================== Audio Playback ====================
+function stopCurrent() {
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  if (currentPlayBtn) { currentPlayBtn.classList.remove('playing'); currentPlayBtn = null; }
+}
+
+function playYoudao(word, type, btn) {
+  stopCurrent();
+  const url = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(word)}&type=${type}`;
+  const audio = new Audio(url);
+  currentAudio = audio; currentPlayBtn = btn;
+  btn.classList.add('playing');
+  audio.onended = () => { btn.classList.remove('playing'); currentAudio = null; currentPlayBtn = null; };
+  audio.onerror = () => { btn.classList.remove('playing'); currentAudio = null; currentPlayBtn = null; showToast('发音加载失败'); };
+  audio.play().catch(() => { btn.classList.remove('playing'); showToast('播放被拦截，请点击页面后重试'); });
+}
+
+function playGoogleTTS(text, btn) {
+  stopCurrent();
+  const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(text)}`;
+  const audio = new Audio(url);
+  currentAudio = audio; currentPlayBtn = btn;
+  btn.classList.add('playing');
+  audio.onended = () => { btn.classList.remove('playing'); currentAudio = null; currentPlayBtn = null; };
+  audio.onerror = () => { btn.classList.remove('playing'); currentAudio = null; currentPlayBtn = null; showToast('发音加载失败'); };
+  audio.play().catch(() => { btn.classList.remove('playing'); showToast('播放被拦截，请点击页面后重试'); });
+}
+
+// ==================== Delete ====================
+function deleteItem(id) {
+  const item = items.find(i => i.id === id);
+  items = items.filter(i => i.id !== id);
+  saveItems(); renderList(); updateStats();
+  if (item) showToast(`已删除 "${item.text.substring(0, 20)}${item.text.length > 20 ? '...' : ''}"`);
+}
+
+// ==================== Render ====================
+function updateItemDom(id) {
+  const row = document.querySelector(`.item-row[data-id="${id}"]`);
+  if (!row) return;
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  const i = items.indexOf(item);
+  const ej = escapeJs(item.text);
+  const eh = escapeHtml(item.text);
+
+  if (item.type === 'word') {
+    const phs = (item.phonetics || []).filter(Boolean);
+    const phHtml = phs.length > 0
+      ? `<span class="phonetic-text">${phs.map(p => escapeHtml(p)).join('<span class="sep">&middot;</span>')}</span>`
+      : `<span class="phonetic-placeholder">暂无音标</span>`;
+    const loading = fetchingSet.has(item.text);
+    const transHtml = item.translation ? `<div class="item-translation">${escapeHtml(item.translation)}</div>` : '';
+    const topDiv = row.querySelector('.item-top');
+    if (topDiv) {
+      const wordSpan = topDiv.querySelector('.word-text');
+      const phSpan = topDiv.querySelector('.phonetic-text') || topDiv.querySelector('.phonetic-placeholder');
+      const phBtn = topDiv.querySelector('.refresh-ph-btn');
+      if (wordSpan) wordSpan.innerHTML = eh;
+      if (phSpan) {
+        if (phs.length > 0) {
+          phSpan.outerHTML = phHtml;
+        } else {
+          phSpan.outerHTML = phHtml;
+        }
+      }
+      if (phBtn) phBtn.classList.toggle('loading', loading);
+    }
+    const existingTrans = row.querySelector('.item-translation');
+    const mainDiv = row.querySelector('.item-main');
+    if (item.translation) {
+      if (existingTrans) {
+        existingTrans.innerHTML = escapeHtml(item.translation);
+      } else {
+        const div = document.createElement('div');
+        div.className = 'item-translation';
+        div.textContent = item.translation;
+        mainDiv.appendChild(div);
+      }
+    } else if (existingTrans) {
+      existingTrans.remove();
+    }
+  } else {
+    const existingTrans = row.querySelector('.item-translation');
+    const mainDiv = row.querySelector('.item-main');
+    if (item.translation) {
+      if (existingTrans) {
+        existingTrans.innerHTML = escapeHtml(item.translation);
+      } else {
+        const div = document.createElement('div');
+        div.className = 'item-translation';
+        div.textContent = item.translation;
+        mainDiv.appendChild(div);
+      }
+    } else if (existingTrans) {
+      existingTrans.remove();
+    }
+  }
+}
+
+function renderList() {
+  const container = document.getElementById('itemList');
+  const query = document.getElementById('searchInput').value.trim().toLowerCase();
+  let filtered = items;
+  if (query) filtered = items.filter(i => i.text.toLowerCase().includes(query));
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/><path d="M8 7h8M8 11h6"/></svg>
+      <p class="empty-title">${query ? '未找到匹配内容' : '词库为空'}</p>
+      <p>${query ? '试试其他关键词' : '拖拽截图或粘贴图片开始使用'}</p></div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map((item, i) => {
+    const dateStr = new Date(item.addedAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+    const delay_s = Math.min(i * 0.03, 0.5);
+    const ej = escapeJs(item.text);
+    const eh = escapeHtml(item.text);
+
+    if (item.type === 'word') {
+      const phs = (item.phonetics || []).filter(Boolean);
+      const phHtml = phs.length > 0
+        ? `<span class="phonetic-text">${phs.map(p => escapeHtml(p)).join('<span class="sep">&middot;</span>')}</span>`
+        : `<span class="phonetic-placeholder">暂无音标</span>`;
+      const loading = fetchingSet.has(item.text);
+      const transHtml = item.translation ? `<div class="item-translation">${escapeHtml(item.translation)}</div>` : '';
+
+      return `<div class="item-row is-word" data-id="${item.id}" style="animation-delay:${delay_s}s">
+        <span class="item-index">${i + 1}</span>
+        <div class="item-main">
+          <div class="item-top">
+            <span class="word-text">${eh}</span>
+            ${phHtml}
+            <button class="refresh-ph-btn ${loading ? 'loading' : ''}" onclick="refreshPhonetic('${ej}', this)" title="获取/刷新音标">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
+            </button>
+          </div>
+          ${transHtml}
+        </div>
+        <span class="item-date">${dateStr}</span>
+        <div class="item-actions">
+          <button class="play-btn" onclick="playYoudao('${ej}', 2, this)" title="美式发音"><span class="play-label">US</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+          <button class="play-btn" onclick="playYoudao('${ej}', 1, this)" title="英式发音"><span class="play-label">UK</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></button>
+          <button class="del-btn" onclick="deleteItem('${item.id}')" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+        </div>
+      </div>`;
+    } else {
+      const transHtml = item.translation ? `<div class="item-translation">${escapeHtml(item.translation)}</div>` : '';
+      return `<div class="item-row is-sentence" data-id="${item.id}" style="animation-delay:${delay_s}s">
+        <span class="item-index">${i + 1}</span>
+        <div class="item-main">
+          <div class="item-top"><span class="sentence-text">${eh}</span></div>
+          ${transHtml}
+        </div>
+        <span class="item-date">${dateStr}</span>
+        <div class="item-actions">
+          <button class="play-btn sentence-play" onclick="playGoogleTTS('${ej}', this)" title="播放发音">
+            <span class="play-label">TTS</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg>
+          </button>
+          <button class="del-btn" onclick="deleteItem('${item.id}')" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+        </div>
+      </div>`;
+    }
+  }).join('');
+}
+
+// ==================== Stats ====================
+function updateStats() {
+  const words = items.filter(i => i.type === 'word');
+  const sentences = items.filter(i => i.type === 'sentence');
+  document.getElementById('totalCount').textContent = items.length;
+  document.getElementById('wordCount').textContent = words.length;
+  document.getElementById('sentenceCount').textContent = sentences.length;
+  const today = new Date().toDateString();
+  document.getElementById('todayCount').textContent =
+    items.filter(i => new Date(i.addedAt).toDateString() === today).length;
+}
+
+// ==================== Export ====================
+function exportItems() {
+  if (items.length === 0) { showToast('词库为空'); return; }
+  const lines = items.map(i => {
+    let line = i.text;
+    if (i.type === 'word' && i.phonetics?.length) line += '  ' + i.phonetics.join(' · ');
+    if (i.translation) line += '  ' + i.translation;
+    return line;
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `word-vault-${new Date().toISOString().slice(0,10)}.txt`;
+  a.click(); URL.revokeObjectURL(a.href);
+  showToast(`已导出 ${items.length} 条`);
+}
+
+// ==================== Clear All ====================
+function showClearAll() {
+  if (items.length === 0) { showToast('词库已为空'); return; }
+  document.getElementById('modal').classList.add('show');
+}
+function hideModal() { document.getElementById('modal').classList.remove('show'); }
+function confirmClearAll() {
+  items = []; saveItems(); renderList(); updateStats();
+  hideModal(); showToast('词库已清空');
+}
+
+// ==================== Toast ====================
+let toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ==================== Helpers ====================
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function escapeJs(s) { return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, ''); }
+
+// ==================== Keyboard ====================
+document.getElementById('textInput').addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') importFromManual();
+});
+
+// ==================== Init ====================
+initTheme();
+renderList();
+updateStats();
+</script>
+</body>
+</html>
