@@ -6,6 +6,8 @@
 <title>Word Vault — 单词发音本</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="phonetics.js"></script>
+<script src="syllables.js"></script>
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root {
@@ -135,12 +137,21 @@
   .btn[disabled]{opacity:.5;cursor:not-allowed;pointer-events:none}
 
   /* Toolbar */
-  .toolbar{display:flex;gap:.6rem;margin-bottom:1rem;animation:fadeUp .5s ease .25s both}
-  .search-wrap{flex:1;position:relative}
+  .toolbar{display:flex;gap:.6rem;margin-bottom:1rem;animation:fadeUp .5s ease .25s both;flex-wrap:wrap}
+  .search-wrap{flex:1;position:relative;min-width:160px}
   .search-wrap svg{position:absolute;left:.85rem;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-subtle);pointer-events:none}
   .search-input{width:100%;padding:.6rem .9rem .6rem 2.5rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-display);font-size:.88rem;outline:none}
   .search-input::placeholder{color:var(--text-subtle)}
   .search-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+  .speed-group{display:inline-flex;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;background:var(--surface-2);flex-shrink:0}
+  .speed-btn{padding:.6rem .55rem;border:none;background:transparent;color:var(--text-muted);font-family:var(--font-mono);font-size:.72rem;cursor:pointer;transition:all var(--transition)}
+  .speed-btn+.speed-btn{border-left:1px solid var(--border)}
+  .speed-btn:hover{color:var(--text)}
+  .speed-btn.active{background:var(--accent);color:#0a0a0c;font-weight:600}
+  [data-theme="light"] .speed-btn.active{color:#fff}
+  .btn-loop.active{background:var(--accent);border-color:var(--accent);color:#0a0a0c;font-weight:600}
+  .btn-loop{min-width:112px;justify-content:center}
+  [data-theme="light"] .btn-loop.active{color:#fff}
 
   /* List */
   .item-list{display:flex;flex-direction:column;gap:.45rem;animation:fadeUp .5s ease .3s both}
@@ -148,6 +159,7 @@
   .item-row:hover{border-color:color-mix(in srgb,var(--border) 50%,var(--text-muted) 50%);background:var(--surface-2)}
   .item-row.is-word{border-left:3px solid var(--accent)}
   .item-row.is-sentence{border-left:3px solid var(--sentence-accent)}
+  .item-row.loop-current{background:var(--surface-2);border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),var(--shadow-card)}
 
   .item-index{font-family:var(--font-mono);font-size:.72rem;color:var(--text-subtle);min-width:28px;text-align:right;user-select:none;padding-top:2px}
   .item-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:.2rem}
@@ -155,6 +167,7 @@
   .word-text{font-size:1.05rem;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
   .sentence-text{font-size:.95rem;font-weight:500;line-height:1.5;word-break:break-word}
   .phonetic-text{font-family:var(--font-mono);font-size:.78rem;color:var(--phonetic);white-space:nowrap}
+  .syllable-text{font-family:var(--font-mono);font-size:.78rem;color:var(--phonetic);margin-left:.5rem;white-space:nowrap;letter-spacing:.02em}
   .phonetic-text .sep{margin:0 .2rem;color:var(--text-subtle)}
   .phonetic-placeholder{font-family:var(--font-mono);font-size:.72rem;color:var(--text-subtle);opacity:.5}
   .item-translation{font-size:.8rem;color:var(--text-muted);line-height:1.5;margin-top:.1rem}
@@ -185,6 +198,40 @@
   .type-badge{font-size:.6rem;font-family:var(--font-mono);padding:.12rem .4rem;border-radius:4px;font-weight:500;letter-spacing:.04em;text-transform:uppercase}
   .type-badge.badge-word{color:var(--accent);background:var(--accent-glow)}
   .type-badge.badge-sentence{color:var(--sentence-accent);background:var(--sentence-glow)}
+
+  /* History */
+  .app.history-mode{max-width:1440px}
+  .app.history-mode .main-layout{display:none}
+  .app.history-mode .ocr-preview{display:none!important}
+  .app.history-mode ~ .stats{display:none}
+  .history-page{display:none}
+  .history-page.show{display:block;animation:fadeUp .4s ease both}
+  .history-head{display:flex;align-items:center;gap:1rem;margin-bottom:1.1rem;flex-wrap:wrap}
+  .history-title{font-size:1.5rem;font-weight:700;letter-spacing:-.02em}
+  .history-summary{margin-left:auto;font-size:.78rem;color:var(--text-muted);font-family:var(--font-mono)}
+  .history-list{display:flex;flex-direction:column;gap:.9rem}
+  .day-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-card);content-visibility:auto;contain-intrinsic-size:auto 240px}
+  .day-head{display:flex;align-items:baseline;gap:.6rem;padding:.8rem 1.1rem;background:var(--surface-2);border-bottom:1px solid var(--border)}
+  .day-date{font-size:.98rem;font-weight:600}
+  .day-date.day-today{color:var(--accent)}
+  .day-count{margin-left:auto;font-size:.72rem;color:var(--text-muted);font-family:var(--font-mono)}
+  .day-body{display:flex;flex-direction:column}
+  .day-empty{padding:1rem 1.1rem;color:var(--text-subtle);font-size:.8rem}
+  .h-row{display:flex;align-items:flex-start;gap:.7rem;padding:.6rem 1.1rem;border-top:1px solid var(--border)}
+  .h-row:hover{background:var(--surface-2)}
+  .day-body>.h-row:first-child{border-top:0}
+  .h-index{font-family:var(--font-mono);font-size:.7rem;color:var(--text-subtle);min-width:26px;text-align:right;padding-top:3px}
+  .h-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:.2rem}
+  .list-more{padding:.8rem 1rem;text-align:center;font-size:.78rem;color:var(--text-muted)}
+  .link-btn{border:none;background:none;color:var(--accent);font:inherit;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:3px}
+  .link-btn:hover{color:var(--accent-dim)}
+  @media(max-width:800px){
+    .history-head{gap:.6rem}
+    .history-title{font-size:1.2rem}
+    .history-summary{width:100%;margin-left:0}
+    .day-head{padding:.7rem .8rem}
+    .h-row{padding:.55rem .8rem}
+  }
 
   /* Empty State */
   .empty-state{text-align:center;padding:3.5rem 1rem;color:var(--text-subtle);animation:fadeUp .5s ease .25s both}
@@ -300,6 +347,19 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
           <input type="text" class="search-input" id="searchInput" placeholder="搜索单词或句子..." oninput="renderList()">
         </div>
+        <div class="speed-group" role="group" aria-label="播放速度">
+          <button class="speed-btn" data-speed="1" onclick="setPlaySpeed(1)" title="正常速度">1x</button>
+          <button class="speed-btn" data-speed="1.5" onclick="setPlaySpeed(1.5)" title="1.5 倍速">1.5x</button>
+          <button class="speed-btn" data-speed="2" onclick="setPlaySpeed(2)" title="2 倍速">2x</button>
+        </div>
+        <button class="btn btn-loop" id="loopBtn" onclick="toggleLoop()" title="自动依次播放词库全部条目">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+          <span id="loopLabel">自动播放</span>
+        </button>
+        <button class="btn" onclick="openHistory()" title="按天查看历史记录">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          历史
+        </button>
         <button class="btn" onclick="exportItems()" title="导出">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </button>
@@ -310,6 +370,19 @@
       <div class="item-list" id="itemList"></div>
     </div>
   </div>
+
+  <!-- History -->
+  <section class="history-page" id="historyPage">
+    <div class="history-head">
+      <button class="btn" onclick="closeHistory()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        返回词库
+      </button>
+      <div class="history-title">历史记录</div>
+      <div class="history-summary" id="historySummary"></div>
+    </div>
+    <div class="history-list" id="historyList"></div>
+  </section>
 
   <!-- OCR Preview -->
   <div class="ocr-preview" id="ocrPreview">
@@ -357,23 +430,125 @@ const TRANS_API = 'https://api.mymemory.translated.net/get';
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
 // ==================== Storage ====================
-function loadItems() {
-  try {
-    const data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-    return data.map(it => ({
-      ...it,
-      type: it.type || 'word',
-      phonetics: it.phonetics || [],
-      translation: it.translation || ''
-    }));
-  } catch { return []; }
+const DB_NAME = 'vocab_vault';
+const DB_STORE = 'items';
+const MIGRATED_KEY = 'word_vault_migrated_v1';
+let db = null;
+
+function dayKey(value) {
+  const d = value instanceof Date ? value : new Date(value);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
-function saveItems() { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }
+
+function normalizeItem(it) {
+  const addedAt = it.addedAt || new Date().toISOString();
+  return {
+    ...it,
+    type: it.type || 'word',
+    phonetics: it.phonetics || [],
+    translation: it.translation || '',
+    addedAt,
+    day: it.day || dayKey(addedAt)
+  };
+}
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) { reject(new Error('IndexedDB unavailable')); return; }
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const database = req.result;
+      if (!database.objectStoreNames.contains(DB_STORE)) {
+        const store = database.createObjectStore(DB_STORE, { keyPath: 'id' });
+        store.createIndex('by_day', 'day');
+        store.createIndex('by_addedAt', 'addedAt');
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('IndexedDB open failed'));
+  });
+}
+
+function dbWrite(mode, fn) {
+  if (!db) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, mode);
+    fn(tx.objectStore(DB_STORE));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function dbPut(item) { return dbWrite('readwrite', s => s.put(item)).catch(() => {}); }
+function dbPutMany(list) { return dbWrite('readwrite', s => list.forEach(it => s.put(it))); }
+function dbDelete(id) { return dbWrite('readwrite', s => s.delete(id)).catch(() => {}); }
+function dbClear() { return dbWrite('readwrite', s => s.clear()).catch(() => {}); }
+
+function dbGetAll() {
+  if (!db) {
+    try {
+      return Promise.resolve((JSON.parse(localStorage.getItem(STORAGE_KEY)) || []).map(normalizeItem));
+    } catch { return Promise.resolve([]); }
+  }
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readonly');
+    const req = tx.objectStore(DB_STORE).getAll();
+    req.onsuccess = () => resolve(req.result.map(normalizeItem));
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbCount() {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readonly');
+    const req = tx.objectStore(DB_STORE).count();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function migrateLocalData() {
+  if (localStorage.getItem(MIGRATED_KEY) === '1') return 0;
+  const count = await dbCount();
+  let legacy = [];
+  try {
+    legacy = (JSON.parse(localStorage.getItem(STORAGE_KEY)) || []).map(normalizeItem);
+  } catch { legacy = []; }
+  if (count === 0 && legacy.length > 0) {
+    try { await dbPutMany(legacy); } catch { return 0; }
+  }
+  localStorage.setItem(MIGRATED_KEY, '1');
+  return count === 0 ? legacy.length : 0;
+}
+
+async function loadItemsFromDB() {
+  try {
+    db = await openDB();
+  } catch {
+    db = null;
+  }
+  if (db) {
+    try { await migrateLocalData(); } catch {}
+  }
+  let data = [];
+  try { data = await dbGetAll(); } catch { data = []; }
+  return data.map(normalizeItem).sort((a, b) => (Date.parse(b.addedAt) || 0) - (Date.parse(a.addedAt) || 0));
+}
 
 // ==================== State ====================
-let items = loadItems();
+let items = [];
 let imageFiles = []; // { file, url }
 let currentAudio = null, currentPlayBtn = null;
+let currentUtterance = null, playToken = 0, fallbackNoticed = false;
+const SPEED_KEY = 'word_vault_speed';
+let playSpeed = [1, 1.5, 2].includes(Number(localStorage.getItem(SPEED_KEY))) ? Number(localStorage.getItem(SPEED_KEY)) : 1;
+let loopPlaying = false, loopIndex = 0, loopRunId = 0;
 let fetchingSet = new Set();
 
 // ==================== Theme ====================
@@ -579,6 +754,7 @@ function importFromText(text, fromOCR = false) {
   const existing = new Set(items.map(i => i.text.toLowerCase()));
   const toAdd = [];
   let skipped = 0;
+  const addedAt = new Date().toISOString();
 
   lines.forEach(line => {
     if (existing.has(line.toLowerCase())) { skipped++; return; }
@@ -588,7 +764,8 @@ function importFromText(text, fromOCR = false) {
       text: line,
       phonetics: [],
       translation: '',
-      addedAt: new Date().toISOString()
+      addedAt,
+      day: dayKey(addedAt)
     });
     existing.add(line.toLowerCase());
   });
@@ -598,8 +775,9 @@ function importFromText(text, fromOCR = false) {
     return;
   }
 
-  items.push(...toAdd);
-  saveItems();
+  if (loopPlaying) stopLoop();
+  items.unshift(...toAdd);
+  dbPutMany(toAdd).catch(() => {});
   renderList();
   updateStats();
 
@@ -641,7 +819,7 @@ async function backgroundFetch(newItems) {
 
     done++;
     fetchBar.style.width = Math.round((done / total) * 100) + '%';
-    saveItems();
+    dbPut(item);
     updateItemDom(item.id);
     await delay(250);
   }
@@ -653,6 +831,12 @@ async function backgroundFetch(newItems) {
 }
 
 async function fetchPhonetic(word) {
+  // 1. Try local ECDICT database first (no network needed)
+  if (window.ECDICT_PHONETICS) {
+    const localPh = ECDICT_PHONETICS[word.toLowerCase()];
+    if (localPh) return [localPh];
+  }
+  // 2. Fallback to remote API
   try {
     const resp = await fetch(DICT_API + encodeURIComponent(word));
     if (!resp.ok) return [];
@@ -687,44 +871,253 @@ async function refreshPhonetic(word, btn) {
   btn.classList.add('loading');
   const ph = await fetchPhonetic(word);
   const item = items.find(i => i.word === word || i.text === word);
-  if (item) { item.phonetics = ph; saveItems(); updateItemDom(item.id); }
+  if (item) { item.phonetics = ph; dbPut(item); updateItemDom(item.id); }
   fetchingSet.delete(word);
   showToast(ph.length > 0 ? `"${word}" 音标已更新` : `"${word}" 未找到音标`);
 }
 
 // ==================== Audio Playback ====================
 function stopCurrent() {
-  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  playToken++;
+  if (currentAudio) { const a = currentAudio; currentAudio = null; a.pause(); a.src = ''; }
   if (currentPlayBtn) { currentPlayBtn.classList.remove('playing'); currentPlayBtn = null; }
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  currentUtterance = null;
+}
+
+function startPlaying(btn) {
+  if (currentPlayBtn && currentPlayBtn !== btn) currentPlayBtn.classList.remove('playing');
+  currentPlayBtn = btn || null;
+  if (btn) btn.classList.add('playing');
+}
+
+function stopPlaying(btn) {
+  if (btn) btn.classList.remove('playing');
+  if (currentPlayBtn === btn) currentPlayBtn = null;
+}
+
+function pickVoice(lang) {
+  if (!window.speechSynthesis) return null;
+  const norm = s => s.toLowerCase().replace('_', '-');
+  const family = norm(lang).slice(0, 2);
+  const list = speechSynthesis.getVoices().filter(v => v.lang && norm(v.lang).startsWith(family));
+  return list.find(v => norm(v.lang) === norm(lang)) || list[0] || null;
+}
+
+function speakLocal(text, lang, btn, onDone) {
+  let finished = false;
+  const finish = () => { if (finished) return; finished = true; if (onDone) onDone(); };
+  if (!window.speechSynthesis) {
+    showToast('无法发音：此浏览器不支持本地语音');
+    stopPlaying(btn);
+    stopLoop();
+    return;
+  }
+  const token = playToken;
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang;
+  u.rate = Math.min(4, 0.9 * playSpeed);
+  const voice = pickVoice(lang);
+  if (voice) u.voice = voice;
+  const watchdog = setTimeout(() => {
+    if (token === playToken && currentUtterance === u) { currentUtterance = null; stopPlaying(btn); }
+    finish();
+  }, 3000 + text.length * 150);
+  u.onend = u.onerror = () => {
+    clearTimeout(watchdog);
+    if (token === playToken && currentUtterance === u) { currentUtterance = null; stopPlaying(btn); }
+    finish();
+  };
+  currentUtterance = u;
+  startPlaying(btn);
+  speechSynthesis.speak(u);
+  setTimeout(() => {
+    if (token !== playToken || currentUtterance !== u) return;
+    if (!speechSynthesis.speaking && !speechSynthesis.pending) {
+      clearTimeout(watchdog);
+      currentUtterance = null;
+      stopPlaying(btn);
+      showToast('本地语音不可用，请检查系统语音或网络');
+      stopLoop();
+      finish();
+    }
+  }, 900);
+}
+
+const deadTTS = {};
+
+function playRemote(url, text, lang, btn, onDone) {
+  stopCurrent();
+  const host = new URL(url).host;
+  if (deadTTS[host]) { speakLocal(text, lang, btn, onDone); return; }
+  const token = playToken;
+  const audio = new Audio(url);
+  audio.preload = 'auto';
+  audio.playbackRate = playSpeed;
+  currentAudio = audio;
+  startPlaying(btn);
+  let handled = false;
+  let startedAt = 0;
+  let timer = null;
+
+  const useLocal = (msg, markDead) => {
+    if (handled || token !== playToken) return;
+    handled = true;
+    clearTimeout(timer);
+    if (markDead) deadTTS[host] = true;
+    if (currentAudio === audio) { currentAudio = null; audio.pause(); audio.src = ''; }
+    stopPlaying(btn);
+    if (!fallbackNoticed) { showToast(msg); fallbackNoticed = true; }
+    setTimeout(() => { if (token === playToken) speakLocal(text, lang, btn, onDone); }, 0);
+  };
+
+  timer = setTimeout(() => { if (audio.readyState < 3) useLocal('在线发音连不上，已改用本地语音', true); }, 3000);
+  audio.onplaying = () => { if (token !== playToken) return; startedAt = Date.now(); clearTimeout(timer); };
+  audio.onended = () => {
+    clearTimeout(timer);
+    if (token !== playToken) return;
+    handled = true;
+    if (currentAudio === audio) currentAudio = null;
+    stopPlaying(btn);
+    if (onDone) onDone();
+  };
+  audio.onerror = () => {
+    clearTimeout(timer);
+    if (token !== playToken) return;
+    if (startedAt) {
+      handled = true;
+      if (currentAudio === audio) currentAudio = null;
+      stopPlaying(btn);
+      if (onDone) onDone();
+      return;
+    }
+    useLocal('在线发音加载失败，已改用本地语音', true);
+  };
+  const started = audio.play();
+  if (started && started.catch) started.catch((e) => {
+    useLocal(e && e.name === 'NotAllowedError' ? '浏览器拦截了播放，已改用本地语音' : '在线发音加载失败，已改用本地语音', !(e && e.name === 'NotAllowedError'));
+  });
 }
 
 function playYoudao(word, type, btn) {
-  stopCurrent();
-  const url = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(word)}&type=${type}`;
-  const audio = new Audio(url);
-  currentAudio = audio; currentPlayBtn = btn;
-  btn.classList.add('playing');
-  audio.onended = () => { btn.classList.remove('playing'); currentAudio = null; currentPlayBtn = null; };
-  audio.onerror = () => { btn.classList.remove('playing'); currentAudio = null; currentPlayBtn = null; showToast('发音加载失败'); };
-  audio.play().catch(() => { btn.classList.remove('playing'); showToast('播放被拦截，请点击页面后重试'); });
+  if (loopPlaying) stopLoop();
+  playRemote(`https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(word)}&type=${type}`, word, type === 1 ? 'en-GB' : 'en-US', btn);
 }
 
 function playGoogleTTS(text, btn) {
+  if (loopPlaying) stopLoop();
+  playRemote(`https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(text)}`, text, 'en-US', btn);
+}
+
+// ==================== Auto Loop ====================
+function setPlaySpeed(s) {
+  playSpeed = s;
+  try { localStorage.setItem(SPEED_KEY, String(s)); } catch {}
+  document.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', Number(b.dataset.speed) === s));
+  if (currentAudio) currentAudio.playbackRate = s;
+}
+
+function updateLoopBtn() {
+  const btn = document.getElementById('loopBtn');
+  if (!btn) return;
+  btn.classList.toggle('active', loopPlaying);
+  document.getElementById('loopLabel').textContent = loopPlaying ? '停止' : '自动播放';
+  btn.title = loopPlaying ? '停止自动播放' : '自动依次播放词库全部条目';
+}
+
+function toggleLoop() {
+  if (loopPlaying) stopLoop(); else startLoop();
+}
+
+function startLoop() {
+  if (items.length === 0) { showToast('词库为空'); return; }
+  loopPlaying = true;
+  loopIndex = 0;
+  loopRunId++;
+  updateLoopBtn();
+  playLoopItem();
+}
+
+function stopLoop() {
+  if (!loopPlaying) return;
+  loopPlaying = false;
+  loopRunId++;
   stopCurrent();
-  const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(text)}`;
-  const audio = new Audio(url);
-  currentAudio = audio; currentPlayBtn = btn;
-  btn.classList.add('playing');
-  audio.onended = () => { btn.classList.remove('playing'); currentAudio = null; currentPlayBtn = null; };
-  audio.onerror = () => { btn.classList.remove('playing'); currentAudio = null; currentPlayBtn = null; showToast('发音加载失败'); };
-  audio.play().catch(() => { btn.classList.remove('playing'); showToast('播放被拦截，请点击页面后重试'); });
+  clearLoopHighlight();
+  updateLoopBtn();
+}
+
+function clearLoopHighlight() {
+  document.querySelectorAll('.item-row.loop-current').forEach(r => r.classList.remove('loop-current'));
+}
+
+function markLoopCurrent(id) {
+  clearLoopHighlight();
+  const row = document.querySelector(`.item-row[data-id="${id}"]`);
+  if (!row) return;
+  row.classList.add('loop-current');
+  row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+function playLoopItem() {
+  if (!loopPlaying) return;
+  if (loopIndex >= items.length) { stopLoop(); return; }
+  const item = items[loopIndex];
+  const runId = loopRunId;
+  const row = document.querySelector(`.item-row[data-id="${item.id}"]`);
+  const btn = row ? row.querySelector('.play-btn') : null;
+  const next = () => {
+    if (!loopPlaying || runId !== loopRunId) return;
+    loopIndex++;
+    setTimeout(playLoopItem, 0);
+  };
+  markLoopCurrent(item.id);
+  if (item.type === 'word') {
+    playRemote(`https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(item.text)}&type=2`, item.text, 'en-US', btn, next);
+  } else {
+    playRemote(`https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(item.text)}`, item.text, 'en-US', btn, next);
+  }
+}
+
+// ==================== Syllables ====================
+let syllableLines = null;
+
+function syllabify(word) {
+  const data = window.SYLLABLE_HYPHENATED;
+  if (!data) return '';
+  if (!syllableLines) syllableLines = data.split('\n');
+  const target = word.toLowerCase();
+  let lo = 0, hi = syllableLines.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const form = syllableLines[mid];
+    const key = form.replace(/·/g, '').toLowerCase();
+    if (key === target) {
+      if (form.replace(/·/g, '').length !== word.length) return '';
+      let out = '', wi = 0;
+      for (const ch of form) {
+        if (ch === '·') {
+          if (wi > 0 && wi < word.length) out += '·';
+        } else {
+          out += word[wi];
+          wi++;
+        }
+      }
+      return out;
+    }
+    if (key < target) lo = mid + 1; else hi = mid - 1;
+  }
+  return '';
 }
 
 // ==================== Delete ====================
 function deleteItem(id) {
+  if (loopPlaying) stopLoop();
   const item = items.find(i => i.id === id);
   items = items.filter(i => i.id !== id);
-  saveItems(); renderList(); updateStats();
+  dbDelete(id);
+  renderList(); updateStats();
+  if (historyOpen) renderHistory();
   if (item) showToast(`已删除 "${item.text.substring(0, 20)}${item.text.length > 20 ? '...' : ''}"`);
 }
 
@@ -792,13 +1185,33 @@ function updateItemDom(id) {
   }
 }
 
+const MAIN_LIMIT = 50;
+
+function getMainList() {
+  const query = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (query) {
+    const matches = items.filter(i => i.text.toLowerCase().includes(query));
+    return { shown: matches.slice(0, MAIN_LIMIT), total: matches.length, searching: true };
+  }
+  const todayKey = dayKey(new Date());
+  const today = [];
+  const older = [];
+  items.forEach(it => {
+    if ((it.day || dayKey(it.addedAt)) === todayKey) today.push(it);
+    else older.push(it);
+  });
+  const shown = today.length >= MAIN_LIMIT
+    ? today
+    : today.concat(older.slice(0, MAIN_LIMIT - today.length));
+  return { shown, total: items.length, searching: false };
+}
+
 function renderList() {
   const container = document.getElementById('itemList');
   const query = document.getElementById('searchInput').value.trim().toLowerCase();
-  let filtered = items;
-  if (query) filtered = items.filter(i => i.text.toLowerCase().includes(query));
+  const { shown, total, searching } = getMainList();
 
-  if (filtered.length === 0) {
+  if (shown.length === 0) {
     container.innerHTML = `<div class="empty-state">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/><path d="M8 7h8M8 11h6"/></svg>
       <p class="empty-title">${query ? '未找到匹配内容' : '词库为空'}</p>
@@ -806,7 +1219,7 @@ function renderList() {
     return;
   }
 
-  container.innerHTML = filtered.map((item, i) => {
+  container.innerHTML = shown.map((item, i) => {
     const dateStr = new Date(item.addedAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
     const delay_s = Math.min(i * 0.03, 0.5);
     const ej = escapeJs(item.text);
@@ -818,6 +1231,8 @@ function renderList() {
         ? `<span class="phonetic-text">${phs.map(p => escapeHtml(p)).join('<span class="sep">&middot;</span>')}</span>`
         : `<span class="phonetic-placeholder">暂无音标</span>`;
       const loading = fetchingSet.has(item.text);
+      const syll = syllabify(item.text);
+      const syllHtml = syll ? `<span class="syllable-text">${escapeHtml(syll)}</span>` : '';
       const transHtml = item.translation ? `<div class="item-translation">${escapeHtml(item.translation)}</div>` : '';
 
       return `<div class="item-row is-word" data-id="${item.id}" style="animation-delay:${delay_s}s">
@@ -826,6 +1241,7 @@ function renderList() {
           <div class="item-top">
             <span class="word-text">${eh}</span>
             ${phHtml}
+            ${syllHtml}
             <button class="refresh-ph-btn ${loading ? 'loading' : ''}" onclick="refreshPhonetic('${ej}', this)" title="获取/刷新音标">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
             </button>
@@ -858,6 +1274,137 @@ function renderList() {
       </div>`;
     }
   }).join('');
+
+  const hidden = total - shown.length;
+  if (hidden > 0) {
+    container.insertAdjacentHTML('beforeend', `<div class="list-more">
+      ${searching
+        ? `共 ${total} 条匹配，显示前 ${shown.length} 条`
+        : `还有 ${hidden} 条更早记录，<button class="link-btn" onclick="openHistory()">去历史查看</button>`}
+    </div>`);
+  }
+}
+
+// ==================== History ====================
+let historyOpen = false;
+const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+function openHistory() {
+  if (loopPlaying) stopLoop();
+  historyOpen = true;
+  document.querySelector('.app').classList.add('history-mode');
+  document.getElementById('historyPage').classList.add('show');
+  renderHistory();
+  window.scrollTo({ top: 0 });
+}
+
+function closeHistory() {
+  historyOpen = false;
+  document.querySelector('.app').classList.remove('history-mode');
+  document.getElementById('historyPage').classList.remove('show');
+  renderList();
+  window.scrollTo({ top: 0 });
+}
+
+function parseDayKey(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function dateLabel(key) {
+  const todayKey = dayKey(new Date());
+  const prev = new Date();
+  prev.setDate(prev.getDate() - 1);
+  const [y, m, d] = key.split('-').map(Number);
+  const base = `${m}月${d}日`;
+  const week = WEEKDAYS[new Date(y, m - 1, d, 12).getDay()];
+  const prefix = key === todayKey ? '今天 · ' : key === dayKey(prev) ? '昨天 · ' : '';
+  return `${prefix}${base} ${week}`;
+}
+
+function historyItemHtml(item, index) {
+  const eh = escapeHtml(item.text);
+  const ej = escapeJs(item.text);
+  if (item.type === 'word') {
+    const phs = (item.phonetics || []).filter(Boolean);
+    const phHtml = phs.length
+      ? `<span class="phonetic-text">${phs.map(p => escapeHtml(p)).join('<span class="sep">&middot;</span>')}</span>`
+      : '';
+    const transHtml = item.translation ? `<div class="item-translation">${escapeHtml(item.translation)}</div>` : '';
+    return `<div class="h-row" data-id="${item.id}">
+      <span class="h-index">${index + 1}</span>
+      <div class="h-main">
+        <div class="item-top"><span class="word-text">${eh}</span>${phHtml}</div>
+        ${transHtml}
+      </div>
+      <div class="item-actions">
+        <button class="play-btn" onclick="playYoudao('${ej}', 2, this)" title="美式发音"><span class="play-label">US</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+        <button class="play-btn" onclick="playYoudao('${ej}', 1, this)" title="英式发音"><span class="play-label">UK</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></button>
+        <button class="del-btn" onclick="deleteItem('${item.id}')" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      </div>
+    </div>`;
+  }
+  const transHtml = item.translation ? `<div class="item-translation">${escapeHtml(item.translation)}</div>` : '';
+  return `<div class="h-row" data-id="${item.id}">
+    <span class="h-index">${index + 1}</span>
+    <div class="h-main">
+      <div class="item-top"><span class="sentence-text">${eh}</span></div>
+      ${transHtml}
+    </div>
+    <div class="item-actions">
+      <button class="play-btn sentence-play" onclick="playGoogleTTS('${ej}', this)" title="播放发音">
+        <span class="play-label">TTS</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg>
+      </button>
+      <button class="del-btn" onclick="deleteItem('${item.id}')" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+  </div>`;
+}
+
+function renderHistory() {
+  const container = document.getElementById('historyList');
+  const summary = document.getElementById('historySummary');
+  if (items.length === 0) {
+    summary.textContent = '0 条记录';
+    container.innerHTML = `<div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <p class="empty-title">还没有记录</p>
+      <p>添加单词后，这里会按天显示</p></div>`;
+    return;
+  }
+
+  const byDay = new Map();
+  items.forEach(it => {
+    const key = it.day || dayKey(it.addedAt);
+    if (!byDay.has(key)) byDay.set(key, []);
+    byDay.get(key).push(it);
+  });
+
+  const todayKey = dayKey(new Date());
+  const earliestKey = [...byDay.keys()].sort()[0];
+  const days = [];
+  const cursor = parseDayKey(todayKey);
+  const end = parseDayKey(earliestKey);
+  while (cursor >= end) {
+    const key = dayKey(cursor);
+    days.push({ key, list: byDay.get(key) || [] });
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  summary.textContent = `${items.length} 条 · ${byDay.size} 天有记录`;
+  container.innerHTML = days.map(day => {
+    const count = day.list.length;
+    const body = count
+      ? `<div class="day-body">${day.list.map((it, i) => historyItemHtml(it, i)).join('')}</div>`
+      : `<div class="day-empty">这天没有记录</div>`;
+    return `<div class="day-card" data-day="${day.key}">
+      <div class="day-head">
+        <div class="day-date${day.key === todayKey ? ' day-today' : ''}">${dateLabel(day.key)}</div>
+        <span class="day-count">${count ? `${count} 条` : ''}</span>
+      </div>
+      ${body}
+    </div>`;
+  }).join('');
 }
 
 // ==================== Stats ====================
@@ -867,9 +1414,9 @@ function updateStats() {
   document.getElementById('totalCount').textContent = items.length;
   document.getElementById('wordCount').textContent = words.length;
   document.getElementById('sentenceCount').textContent = sentences.length;
-  const today = new Date().toDateString();
+  const today = dayKey(new Date());
   document.getElementById('todayCount').textContent =
-    items.filter(i => new Date(i.addedAt).toDateString() === today).length;
+    items.filter(i => (i.day || dayKey(i.addedAt)) === today).length;
 }
 
 // ==================== Export ====================
@@ -896,7 +1443,9 @@ function showClearAll() {
 }
 function hideModal() { document.getElementById('modal').classList.remove('show'); }
 function confirmClearAll() {
-  items = []; saveItems(); renderList(); updateStats();
+  if (loopPlaying) stopLoop();
+  items = []; dbClear(); renderList(); updateStats();
+  if (historyOpen) renderHistory();
   hideModal(); showToast('词库已清空');
 }
 
@@ -919,9 +1468,20 @@ document.getElementById('textInput').addEventListener('keydown', e => {
 });
 
 // ==================== Init ====================
+async function initApp() {
+  try {
+    items = await loadItemsFromDB();
+  } catch {
+    items = [];
+  }
+  renderList();
+  updateStats();
+}
+
 initTheme();
-renderList();
-updateStats();
+setPlaySpeed(playSpeed);
+initApp();
+if (window.speechSynthesis) speechSynthesis.getVoices();
 </script>
 </body>
 </html>
